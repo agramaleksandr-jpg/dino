@@ -10,8 +10,10 @@ function scrollTiles(key) {
   return (scroll) => { const x0 = -(scroll % 2560); tiles[0].x = x0 + 640; tiles[1].x = x0 + 1920; tiles[2].x = x0 + 3200; };
 }
 /** labelled meter in the UI layer: returns set(v 0..1, warn) */
-function uiMeter(ic, label) {
-  const el = G.h('div', 'plate abs', G.ui, { left: 104, top: 94, width: 300, height: 56 });
+function uiMeter(ic, label, low) {
+  // low: in the bottom right corner (the air of the sea animals: at the top it would cover the surface they swim up to,
+  // at the bottom left the animal itself, in the middle the food just before the mouth)
+  const el = G.h('div', 'plate abs', G.ui, low ? { right: 32, bottom: 26, width: 300, height: 56 } : { left: 104, top: 94, width: 300, height: 56 });
   el.innerHTML = `<div class="abs" style="left:14px;top:15px;color:#BFE3FF">${icon(ic, ' style="width:24px;height:24px"')}</div>
     <div class="abs" style="left:48px;top:9px;font:500 12px Rubik,sans-serif;opacity:.75">${label}</div>
     <div class="abs" style="left:48px;top:30px;width:232px;height:10px;border-radius:5px;background:rgba(255,255,255,.18)"></div>
@@ -455,7 +457,7 @@ Scenes.birth = {
     const kB = sp.auto ? mom.s * 0.24 : 0.1;
     const baby = swimmer({ x: 520, y: 520, s: 0.02, z: 5, alpha: 0, young: true });
     baby.s = kB * 0.2;
-    const meter = uiMeter('droplet', 'Воздух');
+    const meter = uiMeter('droplet', 'Воздух', true);
     const S = { t: 0, y: 520, vy: 0, air: 1, born: false, done: false, taps: 0, help: 0, helpT: 0, acts: [], macts: [], blinks: [] };
     G.dbg = { S, baby, mom };
     const hit = G.h('div', 'hit', sc);
@@ -517,7 +519,7 @@ Scenes.swim = {
     const bg = scrollTiles('bg_sea');
     chHeader(C.n, C.name);
     const top = UI.topRight({ counter: [reef ? 'zap' : 'fish', `0 / ${NEED}`] });
-    const meter = uiMeter('droplet', 'Воздух');
+    const meter = uiMeter('droplet', 'Воздух', true);
     const fish = swimmer({ x: X, y: 360, s: 0.17, z: 4 }, sp.auto ? 300 : 0);
     const drain = p.level === 1 ? 0.035 : p.level === 3 ? 0.065 : 0.05, speed = reef ? 110 : p.level === 3 ? 175 : 150;
     const S = { t: 0, y: 360, ty: 360, vy: 0, air: 1, got: 0, outs: 0, forced: 0, food: [], nextF: 0.8, scroll: 0, done: false, hold: false, acts: [], blinks: [], warned: false };

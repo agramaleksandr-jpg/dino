@@ -113,16 +113,21 @@ AU._tts = (on) => { if (window.UI) UI.narrSpeaking(!!on); };
 AU.vkey = (t) => String(t).toLowerCase().replace(/ё/g, 'е').replace(/[^a-zа-я0-9]+/g, ' ').trim();
 AU.clip = null; AU.clipUrl = null; AU.clipTok = 0;
 AU.packs = new Map();
-AU.clipFor = (t) => (typeof VOICE !== 'undefined' && VOICE[AU.vkey(t)]) || null;
+AU.opusOk = (() => { try { return !!new Audio().canPlayType('audio/ogg; codecs="opus"'); } catch (e) { return false; } })();
+AU.clipFor = (t) => {
+  const v = (typeof VOICE !== 'undefined' && VOICE[AU.vkey(t)]) || null;
+  return v && (typeof v[0] !== 'string' || AU.opusOk) ? v : null;   // "oN" packs are Ogg Opus
+};
 /** a line with the animal's name in it is said only where it has been recorded; everywhere else the short line that suits every animal is said */
 AU.alt = (full, short) => (AU.clipFor(full) ? full : short);
 AU.pack = (n) => {
   let p = AU.packs.get(n);
   if (!p) {
-    p = fetch('voice/p' + n + '.mp3').then((r) => { if (!r.ok) throw new Error('voice ' + r.status); return r.arrayBuffer(); });
+    // a pack is voice/p<N>.mp3 (the first recordings) or voice/o<N>.ogg (Opus: clearer at the same size)
+    p = fetch(typeof n === 'string' ? 'voice/' + n + '.ogg' : 'voice/p' + n + '.mp3').then((r) => { if (!r.ok) throw new Error('voice ' + r.status); return r.arrayBuffer(); });
     p.catch(() => AU.packs.delete(n));
     AU.packs.set(n, p);
-    if (AU.packs.size > 6) AU.packs.delete(AU.packs.keys().next().value);   // keep the newest packs only (≈1.6 MB each)
+    if (AU.packs.size > 4) AU.packs.delete(AU.packs.keys().next().value);   // keep the newest packs only (1.6–5 MB each)
   }
   return p;
 };
@@ -138,7 +143,7 @@ AU.playClip = (v, text) => {
   const fail = () => { if (tok === AU.clipTok) { AU.stopClip(); if (window.UI) UI.narrSpeaking(false); if (text) AU.speak(text); } };
   AU.pack(v[0]).then((buf) => {
     if (tok !== AU.clipTok) return;                       // another line has started meanwhile
-    const url = URL.createObjectURL(new Blob([buf.slice(v[1], v[1] + v[2])], { type: 'audio/mpeg' }));
+    const url = URL.createObjectURL(new Blob([buf.slice(v[1], v[1] + v[2])], { type: typeof v[0] === 'string' ? 'audio/ogg' : 'audio/mpeg' }));
     const a = new Audio(url);
     AU.clip = a; AU.clipUrl = url;
     let played = false;
@@ -147,7 +152,7 @@ AU.playClip = (v, text) => {
     a.addEventListener('ended', end);
     a.addEventListener('error', () => { if (AU.clip === a) { if (played) end(); else fail(); } });
     const p = a.play();
-    if (p && p.catch) p.catch(() => { if (AU.clip === a) end(); });   // e.g. no tap yet on the page
+    if (p && p.catch) p.catch((e) => { if (AU.clip === a) { if (e && e.name === 'NotSupportedError') fail(); else end(); } });   // e.g. no tap yet on the page
   }).catch(fail);
 };
 const ttsStop = () => { try { if (AU.native) AU.native.stop(); else if (window.speechSynthesis) speechSynthesis.cancel(); } catch (e) { /* ignore */ } };

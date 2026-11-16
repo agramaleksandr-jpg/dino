@@ -279,8 +279,9 @@ Scenes.museum = {
       const k = Math.sign(S.wheel); S.wheel = 0;
       this.slideTo(Math.round(S.anim ? S.anim.to : S.pos) + k);
     }, { passive: true });
-    this.hallUI();
     const asm = S.asm;
+    // straight into the close-up: the narrator tells about the animal there, not how to use the hall
+    this.hallUI(p.close && asm);
     if (p.close && asm) { S.zoom = 1; S.cross = 1; cam.style.opacity = 0; close.style.display = ''; close.style.opacity = 1; place(); this.closeUI(); }
     else if (p.zoom && asm) {
       G.say(`${sp.name} теперь в музее! Рассмотрим ${G.fm('его', 'её')} поближе.`);
@@ -427,7 +428,7 @@ Scenes.museum = {
     else if (nb < sp.bones.length) say('part', AU.alt(`Здесь будет ${sp.name.toLowerCase()}. Найди остальные кости и собери скелет!${more}`, `Найди остальные кости и собери скелет!${more}`));
     else say('full', AU.alt(`Здесь будет ${sp.name.toLowerCase()}. Собери ${him} скелет!${more}`, `Все кости найдены. Собери скелет!${more}`));
   },
-  hallUI() {
+  hallUI(quiet) {
     const S = this.S;
     G.ui.innerHTML = ''; UI.narrArea = null;
     UI.header('Музей', `В музее ${G.assembledCount()} из ${this.ids.length} животных ${G.per().gen}`, () => G.go('map'));
@@ -441,7 +442,7 @@ Scenes.museum = {
     this.dropHint();
     if (G.firstTime('museum-swipe')) S.hint = UI.hand(G.scene$, HALL.x, 566, 'swipe');
     else if (S.asm) S.hint = UI.hand(G.scene$, 662, 335);
-    this.hallSay(false);
+    if (!quiet) this.hallSay(false);
   },
   async toClose() {
     const S = this.S, tok = G.token;
@@ -537,8 +538,8 @@ Scenes.museum = {
       const sh = UI.hand(G.ui, Math.round(G.bgToWorld(M.ped.x, 0).x), Math.round(G.H * 0.55), 'swipe');
       G.wait(3.2).then(() => sh.remove());
     }
-    if (G.firstApp('close')) G.say(G.firstTime('museum-close-' + sp.id) ? AU.alt(`Нажимай на светящиеся точки — узнаешь, как ${G.fm('был устроен', 'была устроена')} ${sp.name.toLowerCase()}.`, 'Нажимай на светящиеся точки — узнаешь много интересного!')
-      : AU.alt(`Нажимай на точки или сразу играй за ${sp.acc}!`, 'Нажимай на точки или сразу начинай играть!'));
+    // the narrator tells about the animal on show (the dots glow by themselves)
+    G.say(desc);
   },
   /** show the assembled skeleton (a still picture, as in a real museum) or the living animal */
   async setView(skel) {

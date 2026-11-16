@@ -672,7 +672,7 @@
           LYS('Листрозавр рыл норы сильными лапами.', 200), LYS('Вместо зубов у листрозавра — клюв и два бивня.', 230), LYS('Вот и последний! Вся стая в сборе.', 210)] } },
     { id: 'feed2', scene: 'feed', name: 'Засуха', p: { item: 'it_fern', low: true, need: 10, life: 6, bg: 'bg_forest' }, bg: 'bg_forest', pos: '30% 80%', size: '260%', say: 'засуха — растения быстро вянут, торопись!' },
       GUARD('bg_run', 'lystro')],
-    cyno: [{ id: 'sneak2', scene: 'sneak', name: 'Засада', p: { mode: 'hunt', prey: 'it_cyno', need: 4, bg: 'bg_forest' }, bg: 'bg_forest', pos: '60% 80%', size: '260%', say: 'подкрадись к зверьку, пока он не видит!' },
+    cyno: [{ id: 'sneak2', scene: 'sneak', name: 'Засада', p: { mode: 'hunt', prey: 'it_cyno', bg: 'bg_forest' }, bg: 'bg_forest', pos: '60% 80%', size: '260%', say: 'подкрадись к зверьку, пока он не видит!' },
       { id: 'chase2', scene: 'chase', name: 'Большая погоня', p: { prey: 'it_lizard', need: 8, fast: true, bg: 'bg_run' }, bg: 'bg_run', pos: '30% 60%', size: '240%', say: 'ящерицы стали быстрее — догони восемь!' },
       GUARD('bg_forest', 'syn', ['it_lizard'])],
     isano: [{ id: 'mud', scene: 'mud', name: 'Тяжёлые шаги', p: { dist: 6000 }, bg: 'bg_mud', pos: '50% 82%', size: '280%', say: 'перейди топкую равнину — исанозавр тяжёлый!' },

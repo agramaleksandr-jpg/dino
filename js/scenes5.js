@@ -186,7 +186,7 @@ Scenes.sneak = {
       return;
     }
     // ---- creep up on prey that sometimes looks back
-    const NEED = p.need || 3, prey = p.prey || 'it_lizard', big = !!p.big;
+    const NEED = p.need || 1, prey = p.prey || 'it_lizard', big = !!p.big;   // one stalk is enough: not the same hunt three times in a row
     const PW = p.pw || (prey === 'sp_desma' ? 340 : prey === 'nb_hyperodapedon' ? 250 : prey === 'it_roach' ? 84 : 160);
     const top = UI.topRight({ counter: ['paw', `0 / ${NEED}`] });
     const fade = G.h('div', 'full', sc, { background: '#07090b', opacity: 0, pointerEvents: 'none', zIndex: 5 });
