@@ -5,7 +5,7 @@
 const Quiz = {
   N: 10,          // questions in a round
   REPEAT: 15,     // seconds before the question is read again
-  PERS: ['trias', 'jura'],
+  PERS: ['trias', 'jura', 'creta'],
   /** test menu «Викторина: все»: every animal takes part, opened or not */
   all: () => !!(G.state.settings && G.state.settings.quizAll),
   /** the animals that can be asked about: the ones standing in the museum */

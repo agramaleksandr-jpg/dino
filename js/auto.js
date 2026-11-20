@@ -4,7 +4,7 @@
 (() => {
   const cl = G.clamp, sm = G.smooth, D2R = Math.PI / 180;
   // the mouth is not always the foremost point of the picture (a horn tip, a hand of a glider)
-  for (const [id, m] of Object.entries({ shringa: [1440, 148], volati: [614, 170] })) if (MAN.auto && MAN.auto[id]) MAN.auto[id].mouth = m;
+  for (const [id, m] of Object.entries({ shringa: [1440, 148], volati: [614, 170], trike: [1100, 298] })) if (MAN.auto && MAN.auto[id]) MAN.auto[id].mouth = m;
   const A = (id) => MAN.auto[id];
   const isWalker = (id) => { const t = A(id).type; return t === 'biped' || t === 'quad'; };
   GL.isWalker = isWalker;
@@ -108,7 +108,7 @@
     });
     // long front limbs of a baby that walks on all fours
     const AR = Y.arm, armW = AR ? (x, y) => sm(AR.box[0] - 12, AR.box[0] + 12, x) * (1 - sm(AR.box[1] - 12, AR.box[1] + 12, x)) * sm(AR.box[2], AR.box[2] + 40, y) : null;
-    const pre = (x, y) => {
+    const core = (x, y) => {
       const r = Math.hypot(x - ex, y - ey), p = head(x, y);
       if (r < RL) { const k = 1 + (KE - 1) * (1 - sm(0.45 * RL, RL, r)); p[0] = E[0] + (p[0] - E[0]) * k; p[1] = E[1] + (p[1] - E[1]) * k; }
       if (neck) neck(x, y, p);
@@ -117,6 +117,16 @@
       for (const f of feats) f(x, y, p);
       if (AR) { const w = armW(x, y); if (w) p[1] += (y - AR.c[1]) * (AR.k - 1) * w; }
       return p;
+    };
+    // a little arm hanging from the chest (Y.af: its box and shoulder) moves as one piece with its shoulder: otherwise the
+    // reshaped neck pulls its top and leaves its hand, and the arm becomes a thread
+    const AF = Y.af;
+    const pre = !AF ? core : (x, y) => {
+      const p = core(x, y);
+      const w = sm(AF[0] - 6, AF[0] + 6, x) * (1 - sm(AF[1] - 6, AF[1] + 6, x)) * sm(AF[2] - 6, AF[2] + 6, y) * (1 - sm(AF[3] - 6, AF[3] + 6, y));
+      if (!w) return p;
+      const q = core(AF[4], AF[5]);
+      return [p[0] + (x + q[0] - AF[4] - p[0]) * w, p[1] + (y + q[1] - AF[5] - p[1]) * w];
     };
     if (AR) { pre.arm = { c: AR.c, w: armW }; pre.pitch = AR.pitch; }
     // a finer mesh over the head, finest around the eye
@@ -164,9 +174,20 @@
       // the hind legs sit near the body behind the hips: keep them out of the wing beat (otherwise they flap like a third wing)
       const span = d.sMax - d.sMin, hipM = 0.05 * span;
       const legZone = (x, y) => sm(d.sHip + hipM, d.sHip - hipM, S(x, y)) * (1 - sm(band * 2.0, band * 3.0, Math.abs(T(x, y))));
+      // a head given as an outline (a neck held high, a crest, wings reaching past the head): no wing beat inside it,
+      // and the head turns as a whole about the neck base
+      const HP = d.headPoly, HC = d.headC;
+      const inHead = HP ? (x, y) => {
+        let k = false;
+        for (let i = 0, j = HP.length - 1; i < HP.length; j = i++) {
+          const [xi, yi] = HP[i], [xj, yj] = HP[j];
+          if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) k = !k;
+        }
+        return k;
+      } : null;
       const wing = (sign) => (x, y) => {
         const t = T(x, y) * sign, s = S(x, y);
-        if (t < band * 0.4 || s > d.sHead) return 0;
+        if (t < band * 0.4 || (inHead ? inHead(x, y) : s > d.sHead)) return 0;
         return sm(band * 0.5, band * 1.7, t) * (1 - legZone(x, y));
       };
       bones.push(
@@ -177,7 +198,8 @@
         { name: 'tail', type: 'wave', c: P(d.sHip, 0), k: 2,
           w: (x, y) => { const s = S(x, y); if (s > d.sHip) return 0; return Math.pow(cl((d.sHip - s) / (d.sHip - d.sMin), 0, 1), 1.1) * (1 - sm(band * 1.2, band * 2, Math.abs(T(x, y)))); },
           u: (x, y) => cl((d.sHip - S(x, y)) / (d.sHip - d.sMin), 0, 1) },
-        { name: 'head', type: 'rot', c: P(d.sHead, 0), w: (x, y) => sm(d.sHead - 6, d.sHead + 22, S(x, y)) * (1 - sm(band * 1.6, band * 2.4, Math.abs(T(x, y)))) },
+        inHead ? { name: 'head', type: 'rot', c: HC, w: (x, y) => (inHead(x, y) ? sm(6, 40, Math.hypot(x - HC[0], y - HC[1])) : 0) }
+          : { name: 'head', type: 'rot', c: P(d.sHead, 0), w: (x, y) => sm(d.sHead - 6, d.sHead + 22, S(x, y)) * (1 - sm(band * 1.6, band * 2.4, Math.abs(T(x, y)))) },
       );
       return { step: 10, bones };
     }
@@ -271,7 +293,8 @@
   // kchel, kther, fruita: short sprawling legs, a cut far leg could not fold under the body and its foot went into the ground
   // cyno, lystro, liso, placer: thick legs of beasts under a heavy body; cut out, a light gap and the far leg's top showed
   // when they stepped, and the hind leg folded the wrong way
-  const WHOLE = new Set(['giraffa', 'anchi', 'castoro', 'kara', 'masto', 'sidero', 'kchel', 'kther', 'fruita', 'cyno', 'lystro', 'liso', 'placer']);
+  const WHOLE = new Set(['giraffa', 'anchi', 'castoro', 'kara', 'masto', 'sidero', 'kchel', 'kther', 'fruita', 'cyno', 'lystro', 'liso', 'placer',
+    'trex', 'trike', 'parasaur', 'iguano', 'argento', 'velo']);
   const STEP = { anchi: 1.7 };      // a longer step than the default swing
   const legGrid = {};
   const legLab = (id) => {
@@ -527,7 +550,7 @@
     if (scene === 'guard' && eg) keys.push('nestegg_' + eg, 'tree_glide');
     if (scene === 'glide') keys.push('tree_glide');
     // scrolling backgrounds are GL textures: load the picture of the animal's region before the scene starts
-    const SCROLL = { chase: p && p.bg || 'bg_run', escape: p && p.bg || 'bg_run', glide: 'bg_forest', mud: 'bg_mud', flap: p && p.bg || 'bg_lagoon', swim: 'bg_sea' }[scene];
+    const SCROLL = { chase: p && p.bg || 'bg_run', escape: p && p.bg || 'bg_run', glide: 'bg_forest', mud: 'bg_mud', flap: p && p.bg || 'bg_lagoon', swim: 'bg_sea', thermal: p && p.bg || 'bg_lagoon' }[scene];
     if (SCROLL) { const rk = G.rbg(SCROLL); if (rk !== SCROLL) keys.push(rk); }
     // a predator that runs after the player (escape) moves on its own jointed legs
     if ((scene === 'escape' || scene === 'defend') && p && p.hunter) { addSp(String(p.hunter).replace(/^sp_/, '')); if (/^nb_/.test(p.hunter)) keys.push(p.hunter); }

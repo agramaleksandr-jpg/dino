@@ -83,7 +83,7 @@ UI.topRight = (opts) => {
 /* ---------------- narrator */
 /** the chapters, where the child plays as the animal: the narrator only speaks, no subtitle plate over the game */
 UI.QUIET = new Set(['ch1', 'ch2', 'ch3', 'ch4', 'hunt', 'feed', 'mud', 'flap', 'fishing', 'birth', 'swim', 'seek', 'escape', 'guard',
-  'chase', 'sneak', 'glide', 'ambush', 'defend']);
+  'chase', 'sneak', 'glide', 'ambush', 'defend', 'smell', 'duel', 'calls', 'thermal']);
 UI.narr = (text, opts) => {
   if (UI.QUIET.has(G.sceneName)) {
     if (UI.narrEl) { UI.narrEl.remove(); UI.narrEl = null; }

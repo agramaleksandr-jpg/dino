@@ -577,6 +577,8 @@
 
   /* ---------------- the Jurassic period (js/jura.js): its regions, sites and animals go through the same steps below */
   if (window.JURA) JURA.install({ D, S, add, CH, FIN, EGG });
+  /* ---------------- the Cretaceous period (js/creta.js) */
+  if (window.CRETA) CRETA.install({ D, S, add, CH, FIN, EGG });
 
   /* ---------------- more chapters: every animal gets 4–5 mini-games (the grown-up moment is a notice, not a chapter) */
   const NA_LAND = ['coelo', 'posto', 'placer', 'desma', 'icaro'], EU_NORIAN = ['plateo', 'liso', 'eudimo', 'petein', 'austria'], EU_SEA = ['placod', 'tany', 'notho', 'masto'];

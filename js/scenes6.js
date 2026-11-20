@@ -19,7 +19,7 @@ Scenes.seek = {
     const items = (p.who || []).map((w, i) => {
       const o = typeof w === 'string' ? { id: w } : w;
       if (o.id.startsWith('nb_')) {
-        const nb = DATA.neighbours.concat(DATA.jnb || []).find((q) => 'nb_' + q.key === o.id), air = nb.place === 'air';
+        const nb = DATA.neighbours.concat(DATA.jnb || [], DATA.cnb || []).find((q) => 'nb_' + q.key === o.id), air = nb.place === 'air';
         return { i, key: o.id, name: nb.name, text: nb.text, place: sea ? 'water' : nb.place || 'ground', w: o.w || (air ? 190 : 230) };
       }
       const q = DATA.species[o.id], t = kindOf(q);
@@ -135,7 +135,7 @@ Scenes.seek = {
     chHeader(C.n, C.name);
     const zones = SEEKZ.z[scKey], herd = zones.every(([id]) => id === sp.id);
     const herdTexts = herd ? (p.who || []).map((w) => (typeof w === 'string' ? '' : w.text || '')) : [];
-    const NB = DATA.neighbours.concat(DATA.jnb || []);
+    const NB = DATA.neighbours.concat(DATA.jnb || [], DATA.cnb || []);
     const items = zones.map(([id, cs], i) => {
       const c = cs.map(([x, y, r]) => [x * k, y * k, r * k]), [x, y, r] = c[0];
       let name, text, key;
@@ -648,7 +648,7 @@ Scenes.guard = {
     G.dbg = { S, it, mode };
     // ---- the thieves
     const FOE = { it_cyno: ['зверёк', 140], it_lizard: ['ящерица', 150], it_fish: ['хищная рыба', 210], sp_coelo: ['целофизис', 220], sp_notho: ['нотозавр', 300], nb_eoraptor: ['эораптор', 200],
-      nb_compsognathus: ['компсогнат', 190], nb_amphitherium: ['зверёк', 140] };
+      nb_compsognathus: ['компсогнат', 190], nb_amphitherium: ['зверёк', 140], it_mammal: ['зверёк', 140], nb_bernissartia: ['крокодильчик', 210] };
     const kinds = p.foes || (sea ? ['it_fish'] : mode === 'tree' ? ['it_lizard'] : ['it_cyno', 'it_lizard']);
     const hand = UI.hand(G.ui, G.W / 2, G.H / 2, 'tap'); hand.style.display = 'none';
     const reachR = sea ? 95 : 70 + (mode === 'tree' ? 0 : 50);

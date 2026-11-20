@@ -35,8 +35,8 @@ Scenes.title = {
     const box = G.h('div', 'abs', G.ui, { right: 64, top: Math.round(G.H / 2 - 200), width: 470, height: 420 });
     box.innerHTML = `<div class="t-label">Тестовая версия</div>
       <div class="t-title" style="font-size:76px;line-height:1;color:#F2B640;margin-top:8px">Динозавры</div>
-      <div class="t-h" style="margin-top:8px">Триас и юра</div>
-      <div class="t-body" style="margin-top:14px;opacity:.88;max-width:440px">${Object.keys(DATA.species).length} животных триаса и юры: динозавры, летающие и морские ящеры. Раскопки, сборка скелетов, музей и главы их жизни.</div>`;
+      <div class="t-h" style="margin-top:8px">Триас, юра и мел</div>
+      <div class="t-body" style="margin-top:14px;opacity:.88;max-width:440px">${Object.keys(DATA.species).length} животных триаса, юры и мела: динозавры, летающие и морские ящеры. Раскопки, сборка скелетов, музей и главы их жизни.</div>`;
     UI.mainBtn(box, 'Играть', 'play', { l: 0, t: 262 }, 320, () => G.go('map'));
     UI.secBtn(box, 'Викторина', 'star', { l: 0, t: 342 }, 320, () => G.go('quiz', { from: 'title' }));
     UI.secBtn(box, 'Тест-меню', 'flask', { l: 0, t: 418 }, 320, () => Test.open());
@@ -50,7 +50,7 @@ function periodSwitch(parent, w, h, fs, onSwitch) {
   const P = DATA.periodOrder, i = P.indexOf(G.period()), per = G.per();
   const go = (j) => {
     if (j < 0) { UI.toast('Раньше триаса динозавров ещё не было'); return; }
-    if (j >= P.length) { UI.toast('Меловой период откроется позже'); return; }
+    if (j >= P.length) { UI.toast('После мелового периода большие динозавры вымерли'); return; }
     AU.play('whoosh'); G.switchPeriod(P[j]); G.state.region = null; G.save(); onSwitch();
   };
   const lb = UI.iconBtn(parent, 'left', null, () => go(i - 1));
@@ -183,13 +183,13 @@ Scenes.map = {
     const per = G.period(), nAsm = G.assembledCount(), nAll = G.inPeriod().length;
     this.dropHint();
     if (!nAsm) {
-      const first = S.regEls.find((q) => q.r.id === (per === 'trias' ? 'sam' : 'jnam'));
+      const first = S.regEls.find((q) => q.r.id === ({ trias: 'sam', jura: 'jnam', creta: 'cnam' }[per] || 'sam'));
       if (first) S.hint = UI.hand(first.el, 75, 57);
       if (per === 'trias') {
         if (G.firstApp('map-0')) G.say(G.firstTime('map') ? 'Это Пангея — вся суша тогда была одним материком. Нажми на материк — посмотрим, где копать!' : 'Нажми на материк, чтобы найти места раскопок.');
       } else if (G.firstApp('map-' + per + '-0')) G.say(G.firstTime('map-' + per) ? G.per().intro : 'Нажми на материк, чтобы найти места раскопок.');
     } else G.onceApp(`map-${per}-${nAsm}`, nAsm < nAll ? AU.alt(`В музее уже ${nAsm} из ${nAll}. Выбери материк, где копать дальше!`, 'Выбери материк, где копать дальше!')
-      : per === 'trias' ? 'Все животные триаса в музее! Нажми на стрелку — там юрский период.' : 'Все животные юры в музее! Меловой период откроется позже.');
+      : per === 'trias' ? 'Все животные триаса в музее! Нажми на стрелку — там юрский период.' : per === 'jura' ? 'Все животные юры в музее! Нажми на стрелку — там меловой период.' : 'Все животные мела в музее! Ты настоящий палеонтолог!');
   },
   async openRegion(rid, siteId) {
     const S = this.S, tok = G.token, R = DATA.regions[rid], V = R.view;
@@ -621,17 +621,26 @@ Scenes.assemble = {
     ghost.style.opacity = '.16';
     const tray = G.h('div', 'abs', sc, { left: 190, top: TT, width: 900, height: TB - TT, borderRadius: '10px', background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)' });
     const order = G.shuffle(sp.bones.map((b) => b.id));
+    // a bone may be tiny on the skeleton (a short tail, a small head on a long neck): in the tray it fills its slot,
+    // in the hand it is at least DMIN long, and it shrinks to its real size only near its place. The whole slot,
+    // a little taller than the tray, takes the finger — not just the bone's own pixels.
+    const DMIN = 110, SHADOW = 'drop-shadow(0 4px 6px rgba(0,0,0,.6))', GLOW = 'drop-shadow(0 0 7px rgba(255,214,120,.95))';
     const pieces = order.map((id, i) => {
       const m = G.boneMeta(spId, id), w = m.w * s, h = m.h * s;
       const tx = X0 + (m.x - SK.x) * s + w / 2, ty = Y0 + (m.y - SK.y) * s + h / 2;
-      const hx = 190 + 75 + i * 150, hy = (TT + TB) / 2, ks = Math.min(1, 124 / w, 58 / h);
+      const hx = 190 + 75 + i * 150, hy = (TT + TB) / 2, ks = Math.min(4, 124 / w, 58 / h);
+      const kd = Math.max(1, Math.min(4, DMIN / Math.max(w, h)));
       const el = G.spr(G.boneImg(spId, id), sc, 0, 0, w, h, 'pe');
-      el.style.cursor = 'grab'; el.style.filter = 'drop-shadow(0 4px 6px rgba(0,0,0,.6))';
-      const p = { id, el, w, h, tx, ty, hx, hy, ks, x: hx, y: hy, k: ks, placed: false };
+      el.style.cursor = 'grab'; el.style.filter = SHADOW;
+      const p = { id, el, w, h, tx, ty, hx, hy, ks, kd, lift: kd > 1 ? 58 : 26, x: hx, y: hy, k: ks, placed: false, near: false };
       setPos(p);
       el.addEventListener('pointerdown', (e) => grab(p, e));
+      p.hit = G.h('div', 'abs pe', sc, { left: hx - 75, top: TT - 30, width: 150, height: TB - TT + 42, zIndex: 4, cursor: 'grab', touchAction: 'none' });
+      p.hit.addEventListener('pointerdown', (e) => grab(p, e));
       return p;
     });
+    // the size in the hand: kd far from the place, the real size (1) right at it
+    const handK = (p) => { const d = Math.hypot(p.x - p.tx, p.y - p.ty); return G.lerp(1, p.kd, G.smooth(70, 230, d)); };
     function setPos(p) { p.el.style.left = p.x - p.w / 2 + 'px'; p.el.style.top = p.y - p.h / 2 + 'px'; p.el.style.transform = `scale(${p.k})`; }
     let drag = null, placed = 0;
     G.dbg = { pieces };
@@ -641,25 +650,30 @@ Scenes.assemble = {
       if (p.placed || drag) return;
       e.stopPropagation(); AU.unlock(); AU.play('pop');
       handEl.style.display = 'none';
-      drag = { p, pid: e.pointerId };
+      drag = { p, pid: e.pointerId, grown: false };
       p.el.style.zIndex = 5; p.el.style.cursor = 'grabbing';
-      const k0 = p.k, pt = G.bgPt(e), x0 = p.x, y0 = p.y;
-      p.x = pt.x; p.y = pt.y - 26;
-      G.tween(0.18, (q) => { p.k = G.lerp(k0, 1, q); setPos(p); });
-      void x0; void y0;
+      const k0 = p.k, pt = G.bgPt(e);
+      p.x = pt.x; p.y = pt.y - p.lift;
+      G.tween(0.18, (q) => { if (drag && drag.p === p) { p.k = G.lerp(k0, handK(p), q); setPos(p); } }).then(() => { if (drag && drag.p === p) drag.grown = true; });
     }
     G.on(window, 'pointermove', (e) => {
       if (!drag || e.pointerId !== drag.pid) return;
       const pt = G.bgPt(e), p = drag.p;
-      p.x = pt.x; p.y = pt.y - 26; setPos(p);
+      p.x = pt.x; p.y = pt.y - p.lift;
+      if (drag.grown) p.k = handK(p);
+      // a warm glow when the bone is close enough to snap in
+      const near = Math.hypot(p.x - p.tx, p.y - p.ty) < 85;
+      if (near !== p.near) { p.near = near; p.el.style.filter = near ? GLOW : SHADOW; }
+      setPos(p);
     });
     const drop = async (e) => {
       if (!drag || e.pointerId !== drag.pid) return;
       const p = drag.p; drag = null;
       p.el.style.zIndex = ''; p.el.style.cursor = 'grab';
+      p.near = false; p.el.style.filter = SHADOW;
       const d = Math.hypot(p.x - p.tx, p.y - p.ty);
       if (d < 85) {
-        p.placed = true; p.el.style.pointerEvents = 'none';
+        p.placed = true; p.el.style.pointerEvents = 'none'; p.hit.remove();
         const x0 = p.x, y0 = p.y;
         await G.tween(0.18, (q) => { p.x = G.lerp(x0, p.tx, q); p.y = G.lerp(y0, p.ty, q); p.k = 1; setPos(p); });
         AU.play('snap'); G.fx.sparkle(p.tx, p.ty, 10);
