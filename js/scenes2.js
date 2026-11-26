@@ -562,7 +562,8 @@ Scenes.museum = {
       const L = S.skLayer;
       await G.tween(0.35, (e) => { L.style.opacity = e; S.hero.alpha = 1 - e; S.dots.style.opacity = 1 - e; });
       S.dots.style.visibility = 'hidden';
-      G.onceApp('skel-' + sp.id, AU.alt(`Это скелет ${sp.gen}. Такие скелеты собирают учёные и ставят в музеях.`, 'Это скелет. Такие скелеты собирают учёные и ставят в музеях.'));
+      // an animal known from a few bones says so (sp.skelSay): its skeleton is the scientists' guess
+      G.onceApp('skel-' + sp.id, sp.skelSay || AU.alt(`Это скелет ${sp.gen}. Такие скелеты собирают учёные и ставят в музеях.`, 'Это скелет. Такие скелеты собирают учёные и ставят в музеях.'));
     } else {
       AU.play('pop');
       S.skel = false;
@@ -659,13 +660,14 @@ Scenes.path = {
     CH.forEach((c, i) => {
       const s = state[i], el = G.h('div', 'node ' + s, box, { left: NX[i], top: NY[i] });
       // the egg chapter shows this animal's own hatchling in its nest, the nest chapter its kind of nest (js/hatch.js)
-      const HT = window.HATCH, E1 = HT && HT.eye[sp.id], EK = HT && HT.grp[sp.id], PL = EK && HT.place[EK];
+      const HT = window.HATCH, E1 = HT && HT.eye[sp.id], EK = HT && HT.grp[sp.id], NK = (HT && HT.nestOf && HT.nestOf[sp.id]) || EK,
+        PL = NK && HT.place[NK];
       const pct = (x, y) => `${((x / 1536) * 100).toFixed(1)}% ${((y / 864) * 100).toFixed(1)}%`;
       const pic = (c.scene || c.id) === 'seek' && scImg ? [scImg, '190%', '45% 50%']
         : c.id === 'ch1' && E1 ? ['hatch_' + sp.id, '200%', pct(E1[0] - 60, Math.min(700, E1[1] + 150))]
-        : (c.scene || c.id) === 'guard' && PL ? ['bgnest_' + EK, '170%', pct(PL[0], PL[1] - 60)]
+        : (c.scene || c.id) === 'guard' && PL ? ['bgnest_' + NK, '170%', pct(PL[0], PL[1] - 60)]
         : [G.rbg(c.bg), c.size, c.pos];
-      el.innerHTML = `<div class="rg"></div><div class="pic" style="background-image:url(${G.src(pic[0])});background-size:${pic[1]};background-position:${pic[2]}"></div>
+      el.innerHTML = `<div class="rg"></div><div class="pic" style="${G.picCss(pic[0], pic[1], pic[2], 104, 104)}"></div>
         <div class="num">${s === 'done' ? icon('check', ' style="width:20px;height:20px;color:#2A1E05"') : c.n}</div>
         ${s === 'lock' ? `<div class="lk">${icon('lock', ' style="width:34px;height:34px;color:#fff"')}</div>` : ''}
         <div class="nm">${c.name}</div>`;

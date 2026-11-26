@@ -37,13 +37,15 @@ Scenes.ch1 = {
     // each kind of animal has its own egg in its own nest: a round sauropod egg in a sandy pit, a ridged theropod egg on a
     // ring of earth and ferns, a speckled one in a twig cup, a soft leathery one under ferns... (js/hatch.js)
     const SPB = G.SP(), HT = window.HATCH, EK = HT && HT.grp[SPB.id], EG = EK && HT.egg[EK];
-    G.bgImg(EG ? 'bgnest_' + EK : 'bg_nest');
+    // (an animal can have a nest of its own: the oviraptor's crater in the Gobi dunes, the quetzalcoatlus's pit far from the sea)
+    const NK = (HT && HT.nestOf && HT.nestOf[SPB.id]) || EK;
+    G.bgImg(EG ? 'bgnest_' + NK : 'bg_nest');
     shades(sc, 0.6, 0.5);
     chHeader(1, 'Яйцо');
     const top = UI.topRight({ counter: ['egg', '0 / 7'] });
     let ekey, ew, eh, ex, ey, ecx, ecy, erx, ery, BX, BY;
     if (EG) {
-      const [px, py, ph] = HT.place[EK], k = (ph / (EG.bottom - (EG.cy - EG.ry))) * F6;
+      const [px, py, ph] = HT.place[NK], k = (ph / (EG.bottom - (EG.cy - EG.ry))) * F6;
       ekey = 'egg_' + EK; ew = EG.w * k; eh = EG.h * k; BX = px * F6; BY = py * F6;
       ex = BX - EG.cx * k; ey = BY - EG.bottom * k; ecx = ex + EG.cx * k; ecy = ey + EG.cy * k; erx = EG.rx * k; ery = EG.ry * k;
     } else {

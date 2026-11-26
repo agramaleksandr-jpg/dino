@@ -125,6 +125,10 @@ img{-webkit-user-drag:none;user-select:none}
 .hand.swipe i{animation:none;opacity:.55;transform:scale(.8)}
 .hand.swipe svg.f{animation:none}
 @keyframes swipe{0%,100%{transform:translate(-60px,0)}50%{transform:translate(60px,0)}}
+.hand.pull{animation:pullh 1.7s ease-in-out infinite}
+.hand.pull i{animation:none;opacity:.55;transform:scale(.8)}
+.hand.pull svg.f{animation:none}
+@keyframes pullh{0%,15%{transform:translate(0,-40px);opacity:0}30%{opacity:1}80%{transform:translate(0,90px);opacity:1}100%{transform:translate(0,90px);opacity:0}}
 @keyframes holdr{0%{transform:scale(.7);opacity:.3}50%{transform:scale(1.05);opacity:1}100%{transform:scale(.7);opacity:.3}}
 
 /* ---------- footprints */

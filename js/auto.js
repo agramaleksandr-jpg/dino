@@ -4,7 +4,10 @@
 (() => {
   const cl = G.clamp, sm = G.smooth, D2R = Math.PI / 180;
   // the mouth is not always the foremost point of the picture (a horn tip, a hand of a glider)
-  for (const [id, m] of Object.entries({ shringa: [1440, 148], volati: [614, 170], trike: [1100, 298] })) if (MAN.auto && MAN.auto[id]) MAN.auto[id].mouth = m;
+  for (const [id, m] of Object.entries({ shringa: [1440, 148], volati: [614, 170], trike: [1100, 298], styraco: [1004, 323] })) if (MAN.auto && MAN.auto[id]) MAN.auto[id].mouth = m;
+  // the head joint where the cutter put it too far forward: the long skull of the sarcosuchus turns as a whole at the neck,
+  // and only above its front feet (headY: where the head's pull fades out downwards)
+  for (const [id, h] of Object.entries({ sarco: { head: [1140, 92], headX0: 1140, headY: [190, 225] } })) if (MAN.auto && MAN.auto[id]) Object.assign(MAN.auto[id], h);
   const A = (id) => MAN.auto[id];
   const isWalker = (id) => { const t = A(id).type; return t === 'biped' || t === 'quad'; };
   GL.isWalker = isWalker;
@@ -60,8 +63,9 @@
       if (d.type !== 'swim' && d.neck) {
         // a short neck: the head comes closer to the shoulders
         const N = d.neck, hbx = mx + ax * U2 - N[0], hby = my + ay * U2 - N[1], Ln = Math.hypot(hbx, hby);
-        if (Ln > 0.8 * U2) {
-          const ux = hbx / Ln, uy = hby / Ln, neckX = N[0], headX0 = d.headX0, bellyY = d.bellyY, KN = 0.3;
+        // (Y.kn: how much shorter; 0 for a neck that is short already, like the armoured ankylosaur's)
+        if (Ln > 0.8 * U2 && Y.kn !== 0) {
+          const ux = hbx / Ln, uy = hby / Ln, neckX = N[0], headX0 = d.headX0, bellyY = d.bellyY, KN = Y.kn || 0.3;
           neck = (x, y, p) => {
             // the whole head goes along, even when it hangs below the belly line
             const dx = x - mx, dy = y - my, u = dx * ax + dy * ay, hz = u > -De ? (1 - sm(U2 + 0.3 * Th, U2 + 1.2 * Th, u)) * (1 - sm(0.9 * Th, 1.5 * Th, Math.abs(dx * nx + dy * ny))) : 0;
@@ -91,6 +95,10 @@
         };
       }
       const P = F.poly, m = P.length, soft = F.s || 6, bx = F.b[0], by = F.b[1];
+      // F.rel: the piece keeps its shape — it goes where its base point b goes (with the head, the neck and the tail) and only
+      // gets smaller there; otherwise a horn on the growing head is sheared, and a club on the shortened tail is squashed flat
+      let bT = null;
+      if (F.rel) { bT = head(bx, by); if (neck) neck(bx, by, bT); tail(bx, by, bT); }
       return (x, y, p) => {
         let ins = false, dmin = 1e9;
         for (let i = 0, j = m - 1; i < m; j = i++) {
@@ -102,6 +110,10 @@
         // everything inside moves as one piece; the fade lies outside the outline (drawn with a margin around the horn),
         // so no edge of the horn is left behind
         if (!ins && dmin >= soft) return;
+        if (bT) {
+          const w = ins ? 1 : 1 - sm(0, soft, dmin), qx = bT[0] + (x - bx) * F.k, qy = bT[1] + (y - by) * F.k;
+          p[0] += (qx - p[0]) * w; p[1] += (qy - p[1]) * w; return;
+        }
         const w = (ins ? 1 : 1 - sm(0, soft, dmin)) * K;
         p[0] += (bx - x) * w; p[1] += (by - y) * w;
       };
@@ -214,10 +226,14 @@
         bones.push({ name: 'fin' + i, type: 'rot', c: f.c, w: (x, y) => sm(bx0 - 6, bx0 + 8, x) * (1 - sm(bx1 - 8, bx1 + 6, x)) * sm(by0 - 4, by0 + 10, y) });
       });
     } else {
+      // (neckY: where the neck's pull fades out downwards, above long arms that hang from the shoulders)
+      const ny = d.neckY || [bellyY - 4, bellyY + 14];
       bones.push({ name: 'neck', type: 'rot', c: d.neck,
-        w: (x, y) => sm(neckX, neckX + 0.45 * (headX0 - neckX), x) * (1 - sm(bellyY - 4, bellyY + 14, y)) });
+        w: (x, y) => sm(neckX, neckX + 0.45 * (headX0 - neckX), x) * (1 - sm(ny[0], ny[1], y)) });
     }
-    bones.push({ name: 'head', type: 'rot', c: d.head, w: (x, y) => sm(headX0 - 10, headX0 + 26, x) * (1 - sm(Y1 - 0.14 * H, Y1 - 0.04 * H, y)) });
+    const hy = d.headY || [Y1 - 0.14 * H, Y1 - 0.04 * H];
+    bones.push({ name: 'head', type: 'rot', c: d.head, w: (x, y) => sm(headX0 - 10, headX0 + 26, x) * (1 - sm(hy[0], hy[1], y)) });
+
     return { step: Math.max(8, Math.round(Math.max(W, H) / 120)), bones };
   };
 
@@ -294,7 +310,17 @@
   // cyno, lystro, liso, placer: thick legs of beasts under a heavy body; cut out, a light gap and the far leg's top showed
   // when they stepped, and the hind leg folded the wrong way
   const WHOLE = new Set(['giraffa', 'anchi', 'castoro', 'kara', 'masto', 'sidero', 'kchel', 'kther', 'fruita', 'cyno', 'lystro', 'liso', 'placer',
-    'trex', 'trike', 'parasaur', 'iguano', 'argento', 'velo']);
+    'trex', 'trike', 'parasaur', 'iguano', 'argento', 'velo', 'ankylo', 'styraco', 'pachy', 'ovi', 'yuty', 'giga', 'sarco', 'magya',
+    'tarbo', 'saurolo', 'therizino', 'deino', 'galli', 'proto', 'pinaco', 'tsinta', 'halszka',
+    'majunga', 'carcharo', 'masiaka', 'rahona', 'rapeto', 'nigero', 'simo', 'kapro', 'ourano',
+    'carno', 'megara', 'austro', 'patagonykus', 'irritator', 'bonaparte', 'amarga', 'salta',
+    'baryo', 'neoven', 'polacan', 'hypsilo', 'concav', 'pelecan', 'balaur', 'telmato',
+    'muttab', 'austrov', 'leaelly', 'vegavis', 'diamant', 'kunbarra', 'antarcto',
+    // the Triassic of Africa and Madagascar: cut out, the dicynodont's far hind leg took a piece of its rump, the frog relative's
+    // folded legs and the pillar legs of the sauropodomorph and the allokotosaur left slivers on the body
+    'eupark', 'erythro', 'kanne', 'thrinax', 'melano', 'azendo', 'triado',
+    // the Triassic of South America: the same whole paintings with swinging painted legs
+    'presto', 'hyper', 'macro', 'saci', 'lago', 'brasil', 'mussa', 'laquinta', 'patago', 'eoabeli', 'manidens', 'rhoeto', 'ozraptor']);
   const STEP = { anchi: 1.7 };      // a longer step than the default swing
   const legGrid = {};
   const legLab = (id) => {
@@ -309,6 +335,16 @@
     const [X0, X1, , Y1] = d.box, LG = legsOf(id), lab = LG.length ? legLab(id) : null;
     const rig = GL.RIGS.auto(id, o && o.young);
     const hgt = LG.map((q) => q.f[1] - q.c[1]), L = LG.length ? hgt.reduce((s0, v) => s0 + v, 0) / LG.length : 0.3 * (Y1 - d.box[2]);
+    // long arms that can be raised (the therizinosaur's scythe claws): what lies in the sector a (deg, seen from the shoulder c)
+    // between the radii r turns about the shoulder; the edges of the sector and the shoulder fade softly, the legs never move with it
+    if (d.claws) {
+      const q = d.claws, [a0, a1, a2, a3] = q.a, [r0, r1] = q.r;
+      rig.bones.push({ name: 'claws', type: 'rot', c: q.c, w: (x, y) => {
+        if (lab && lab(x, y)) return 0;
+        const dx = x - q.c[0], dy = y - q.c[1], ang = Math.atan2(dy, dx) / D2R;
+        return sm(a0, a1, ang) * (1 - sm(a2, a3, ang)) * sm(r0, r1, Math.hypot(dx, dy));
+      } });
+    }
     LG.forEach((q, k) => {
       const h = hgt[k];
       // the thigh: the whole leg turns about the hip, its top fading into the body; the shin: the lower half bends at the knee
@@ -546,12 +582,32 @@
     else if (!['map', 'site', 'title', 'loading', 'path'].includes(scene)) addSp(id);
     // eggs and nests of the animal's kind, and its painted hatchling with the closed eye for blinking
     const HT = window.HATCH, eg = HT && HT.grp[id];
-    if (scene === 'ch1' && eg) { keys.push('bgnest_' + eg, 'egg_' + eg); if (HT.eye[id]) keys.push('hatch_' + id, 'lid_' + id); }
+    if (scene === 'ch1' && eg) { keys.push('bgnest_' + ((HT.nestOf && HT.nestOf[id]) || eg), 'egg_' + eg); if (HT.eye[id]) keys.push('hatch_' + id, 'lid_' + id); }
     if (scene === 'guard' && eg) keys.push('nestegg_' + eg, 'tree_glide');
     if (scene === 'glide') keys.push('tree_glide');
+    // the shelter rock of the sandstorm (drawn on the GPU between the dunes and the animals); the high branches of the claws game
+    if (scene === 'storm') keys.push('it_rock');
+    if (scene === 'claws') keys.push('it_twig1', 'it_twig2', 'it_twig3');
+    // the low plants the nigersaurus mows; the hunter that looks out of the bushes and the river at the end of the tracks
+    if (scene === 'mow') keys.push('it_fern', 'it_horsetail', 'it_shoots', 'it_lizard');
+    if (scene === 'tracks') { if (p && p.hunter) addSp(String(p.hunter).replace(/^sp_/, '')); const rk = G.rbg((p && p.end) || 'bg_valley'); keys.push(rk); }
+    // the logs of the termite game (GPU sprites; the termites are DOM pictures); the standing pterodaustro of the sieve game
+    if (scene === 'termites') keys.push('it_logrot', 'it_logsolid', 'it_logcrack', 'it_logopen');
+    if (scene === 'wade' && p && p.mode === 'sieve') keys.push('ptd_body', 'ptd_neck');
+    // the fern shoots of the polar night; the fish of the dive and the mosasaur that passes below
+    if (scene === 'night') keys.push((p && p.item) || 'it_shoots');
+    if (scene === 'dive') keys.push((p && p.prey) || 'it_fish', (p && p.foe) || 'nb_kaikaifilu');
+    // the nest of the mother's babies; the animals that come down to the river to drink; the nest of the turtle hatchlings
+    if (scene === 'care') keys.push('nest_' + ((p && p.nest) || eg || 'round'));
+    if (scene === 'drink') keys.push(...((p && p.prey) || ['nb_aquilarhinus', 'nb_agujaceratops']));
+    if (scene === 'tosea' && eg) keys.push('nestegg_' + eg);
+    // the eggs the long-necked mother lays in the sand; the hunter that comes to the burrow (a jointed animal or a picture)
+    if (scene === 'lay' && p && p.walker) keys.push('egg_' + (eg || 'round'));
+    if (scene === 'burrow') { const hk = (p && p.hunter) || 'sp_laevi'; if (/^nb_/.test(hk)) keys.push(hk); else addSp(hk.replace(/^sp_/, '')); }
     // scrolling backgrounds are GL textures: load the picture of the animal's region before the scene starts
-    const SCROLL = { chase: p && p.bg || 'bg_run', escape: p && p.bg || 'bg_run', glide: 'bg_forest', mud: 'bg_mud', flap: p && p.bg || 'bg_lagoon', swim: 'bg_sea', thermal: p && p.bg || 'bg_lagoon' }[scene];
-    if (SCROLL) { const rk = G.rbg(SCROLL); if (rk !== SCROLL) keys.push(rk); }
+    const SCROLL = { chase: p && p.bg || 'bg_run', escape: p && p.bg || 'bg_run', glide: 'bg_forest', mud: 'bg_mud', flap: p && p.bg || 'bg_lagoon', swim: p && p.bg || 'bg_sea', thermal: p && p.bg || 'bg_lagoon',
+      storm: p && p.bg || 'bg_run', mow: p && p.bg || 'bg_valley', tracks: p && p.bg || 'bg_run', termites: p && p.bg || 'bg_forest', stride: p && p.bg || 'bg_run' }[scene];
+    if (SCROLL) keys.push(G.rbg(SCROLL));
     // a predator that runs after the player (escape) moves on its own jointed legs
     if ((scene === 'escape' || scene === 'defend') && p && p.hunter) { addSp(String(p.hunter).replace(/^sp_/, '')); if (/^nb_/.test(p.hunter)) keys.push(p.hunter); }
     return keys;

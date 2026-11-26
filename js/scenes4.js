@@ -48,7 +48,10 @@ const ITEM = {
   it_fern: { many: 'папоротники', cnt: 'папоротников' }, it_cycad: { many: 'сочные листья', cnt: 'листьев' }, it_horsetail: { many: 'хвощи', cnt: 'хвощей' }, it_branch: { many: 'свежие ветки', cnt: 'веток' },
   it_lizard: { many: 'ящериц', cnt: 'ящериц' }, it_roach: { many: 'тараканов', cnt: 'тараканов' }, it_cyno: { many: 'зверьков', cnt: 'зверьков' },
   it_algae: { many: 'водоросли', cnt: 'водорослей', win: 'Наелся! Водоросли со дна — любимая еда.' }, it_ginkgo: { many: 'листья гинкго', cnt: 'веток' },
-  it_shoots: { many: 'сочные побеги', cnt: 'побегов' },
+  it_shoots: { many: 'сочные побеги', cnt: 'побегов' }, it_jelly: { many: 'медуз', cnt: 'медуз' }, it_turtle: { many: 'черепах', cnt: 'черепах' },
+  it_grass: { many: 'траву', cnt: 'пучков травы' }, it_seeds: { many: 'семена', cnt: 'колосков' }, it_snail: { many: 'улиток', cnt: 'улиток' },
+  it_palmfruit: { many: 'плоды пальм', cnt: 'плодов' },
+  it_beetle: { many: 'жуков', cnt: 'жуков' }, it_root: { many: 'корешки', cnt: 'корешков' }, it_dicroidium: { many: 'листья', cnt: 'веток' },
 };
 /** on-screen scale so the animal's body is about w × h design px */
 const fitK = (id, w, h) => { const b = MAN.auto[id].box; return Math.min(w / (b[1] - b[0]), h / (b[3] - b[2])); };
@@ -512,21 +515,32 @@ Scenes.birth = {
 /* ------------------------------------------------------------------ swimmer · hunt, breathe at the surface (reef: pick clams off the seabed) */
 Scenes.swim = {
   enter(p) {
-    const sc = G.scene$, tok = G.token, sp = G.SP(), C = chOf(p, 2), NEED = p.need || 10, SURF = 105, X = 330, reef = !!p.reef, BED = 640;
+    // p.deep: the prey lives deep down where it is dark; around the eye the water is light (big-eyed ichthyosaurs)
+    // p.gills: a fish — it breathes in the water, no air to fetch at the surface; p.bg: its own water (a lake)
+    const sc = G.scene$, tok = G.token, sp = G.SP(), C = chOf(p, 2), NEED = p.need || 10, SURF = 105, X = 330, reef = !!p.reef, BED = 640, deep = !!p.deep, gills = !!p.gills;
     const food = p.food || ['it_ammonite', 'it_belemnite'], IT = ITEM[food[0]] || ITEM.it_ammonite;
     G.h('div', 'full', sc, { background: '#0b3f78' });
     GL.attach(sc);
-    const bg = scrollTiles('bg_sea');
+    const bg = scrollTiles(p.bg || 'bg_sea');
     chHeader(C.n, C.name);
     const top = UI.topRight({ counter: [reef ? 'zap' : 'fish', `0 / ${NEED}`] });
-    const meter = uiMeter('droplet', 'Воздух', true);
+    const meter = gills ? () => {} : uiMeter('droplet', 'Воздух', true);
     const fish = swimmer({ x: X, y: 360, s: 0.17, z: 4 }, sp.auto ? 300 : 0);
+    // the dark of the deep water over everything but the light circle the big eye sees (a mask follows the eye)
+    let dark = null, eyeRest = null;
+    if (deep) {
+      dark = G.h('div', 'full', sc, { pointerEvents: 'none', zIndex: 5,
+        background: 'linear-gradient(rgba(2,10,30,0) 0px, rgba(2,10,30,0) 240px, rgba(2,12,34,.8) 430px, rgba(1,6,22,.9) 720px)' });
+      const yd = window.YOUNG && YOUNG[sp.id], e = yd && yd.e;
+      eyeRest = e ? GL.restPt(fish, [e[0], e[1]]) : null;
+    }
     const drain = p.level === 1 ? 0.035 : p.level === 3 ? 0.065 : 0.05, speed = reef ? 110 : p.level === 3 ? 175 : 150;
     const S = { t: 0, y: 360, ty: 360, vy: 0, air: 1, got: 0, outs: 0, forced: 0, food: [], nextF: 0.8, scroll: 0, done: false, hold: false, acts: [], blinks: [], warned: false };
     G.dbg = { S, fish };
     const hit = G.h('div', 'hit', sc);
     const hand = UI.hand(G.ui, G.W / 2, G.H / 2 + 60, 'hold');
-    G.say(sp.id === 'shoni' ? 'Веди пальцем вверх и вниз — шонизавр поплывёт за ним. Лови аммонитов, а за воздухом всплывай наверх!'
+    if (deep || gills) G.say(AU.alt(p.intro[0], p.intro[1]));
+    else G.say(sp.id === 'shoni' ? 'Веди пальцем вверх и вниз — шонизавр поплывёт за ним. Лови аммонитов, а за воздухом всплывай наверх!'
       : reef ? AU.alt(`Веди пальцем вверх и вниз — ${sp.name.toLowerCase()} поплывёт за ним. Собирай ${IT.many} на дне, а за воздухом всплывай наверх!`, `Веди пальцем вверх и вниз — и плыви за ним. Собирай ${IT.many} на дне, а за воздухом всплывай наверх!`)
         : AU.alt(`Веди пальцем вверх и вниз — ${sp.name.toLowerCase()} поплывёт за ним. Лови ${IT.many}, а за воздухом всплывай наверх!`, `Веди пальцем вверх и вниз — и плыви за ним. Лови ${IT.many}, а за воздухом всплывай наверх!`));
     const setT = (e) => { S.ty = G.clamp(G.bgPt(e).y, SURF - 20, reef ? BED - 30 : 640); };
@@ -539,15 +553,16 @@ Scenes.swim = {
     }
     const win = async () => {
       S.done = true; AU.play('ok');
-      G.say(sp.id === 'shoni' ? 'Отличная охота! Длинные ласты помогали шонизавру рулить, а хвост с плавником — быстро плыть.' : IT.win ? IT.win : reef ? 'Отличный улов! Ракушки — любимая еда.' : 'Отличная охота!');
+      G.say(p.win ? p.win : sp.id === 'shoni' ? 'Отличная охота! Длинные ласты помогали шонизавру рулить, а хвост с плавником — быстро плыть.' : IT.win ? IT.win : reef ? 'Отличный улов! Ракушки — любимая еда.' : 'Отличная охота!');
       await G.wait(2.0); if (!G.alive(tok)) return;
       const stars = S.outs === 0 ? 3 : S.outs === 1 ? 2 : 1;
-      chFinish(C.n, stars, { stat: `Поймано: ${S.got} · воздух кончался: ${S.outs}` });
+      chFinish(C.n, stars, { stat: gills ? `Поймано: ${S.got}` : `Поймано: ${S.got} · воздух кончался: ${S.outs}` });
     };
     G.tick((dt) => {
       S.t += dt; S.scroll += (reef ? 90 : 120) * dt; bg(S.scroll);
       const atSurf = S.y < SURF + 12;
-      if (atSurf) { S.air = Math.min(1, S.air + dt * 0.7); if (Math.random() < dt * 10) G.fx.emit({ type: 'puff', x: X + 90 + G.rand(-10, 10), y: SURF - 30 + G.rand(-4, 4), vx: G.rand(-30, 30), vy: G.rand(-90, -40), g: 100, life: 0.6, size: G.rand(5, 9), color: 'rgba(235,248,255,', drag: 2 }); }
+      if (gills) S.air = 1;
+      else if (atSurf) { S.air = Math.min(1, S.air + dt * 0.7); if (Math.random() < dt * 10) G.fx.emit({ type: 'puff', x: X + 90 + G.rand(-10, 10), y: SURF - 30 + G.rand(-4, 4), vx: G.rand(-30, 30), vy: G.rand(-90, -40), g: 100, life: 0.6, size: G.rand(5, 9), color: 'rgba(235,248,255,', drag: 2 }); }
       else if (!S.done) S.air -= dt * drain;
       if (S.air < 0.25 && !S.warned && !atSurf) { S.warned = true; G.once('air', 'Воздух кончается — плыви наверх!'); }
       if (S.air > 0.6) S.warned = false;
@@ -560,12 +575,21 @@ Scenes.swim = {
       const ps = fish.swimPose(S.t, S.acts, S.blinks, 0.9);
       fish.mesh.deform(ps); fish.blink = ps.blink || 0;
       fish.y = S.y + (ps.yOff || 0) * fish.s; fish.rot = G.clamp(S.vy * 0.0016, -0.4, 0.4);
+      if (dark) {
+        const ep = eyeRest ? fish.toDesign(eyeRest[0], eyeRest[1]) : fish.mouthPt(), R = 250;
+        const m = `radial-gradient(circle at ${ep[0]}px ${ep[1]}px, transparent ${R * 0.42}px, rgba(0,0,0,.55) ${R * 0.72}px, black ${R}px)`;
+        dark.style.webkitMaskImage = m; dark.style.maskImage = m;
+        // the prey stays down in the dark: a child who keeps to the top is told once where to look
+        S.top = S.y < 300 ? (S.top || 0) + dt : 0;
+        if (S.top > 6 && S.air > 0.8 && p.down) G.once('down', p.down);
+      }
       S.nextF -= dt;
       if (!S.done && S.nextF <= 0) {
-        const key = G.pick(food), w = key === 'it_clam' ? 62 : key === 'it_algae' ? 64 : key === 'it_ammonite' ? 70 : key === 'it_fish' ? 84 : key === 'it_shrimp' ? 74 : 92;
+        const key = G.pick(food), w = key === 'it_clamshrimp' ? 54 : key === 'it_clam' ? 62 : key === 'it_algae' ? 64 : key === 'it_ammonite' ? 70 : key === 'it_fish' ? 84 : key === 'it_shrimp' ? 74 : key === 'it_snail' ? 66 : 92;
         const el = glowImg(key, sc, 0, 0, w, 'drop-shadow(0 0 6px rgba(255,236,170,.85))');
-        const still = key === 'it_clam' || key === 'it_algae', tall = key === 'it_algae' ? (w * MAN[key].h) / MAN[key].w : 50;
-        S.food.push({ x: 1340, y0: reef ? G.rand(BED - 40, BED - 14) : G.rand(SURF + 70, 620), ph: G.rand(0, 6), el, w, still, tall });
+        const still = key === 'it_clam' || key === 'it_algae' || key === 'it_snail', tall = key === 'it_algae' || key === 'it_snail' ? (w * MAN[key].h) / MAN[key].w : 50;
+        // (a snail crawls on the bottom; the rest swims or lies at any depth)
+        S.food.push({ x: 1340, y0: reef ? G.rand(BED - 40, BED - 14) : key === 'it_snail' ? BED - 8 - tall / 2 : deep ? G.rand(440, 630) : G.rand(SURF + 70, 620), ph: G.rand(0, 6), el, w, still, tall });
         S.nextF = reef ? G.rand(1.2, 1.9) : G.rand(0.9, 1.5);
       }
       const mp = fish.mouthPt();

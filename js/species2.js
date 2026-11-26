@@ -334,6 +334,12 @@
         say: 'Глава 1: лови креветок и всплывай за воздухом!', facts: ['body'] }),
       CH(2, 'ambush', 'Засада', 2, { scene: 'ambush', p: { prey: 'it_fish', need: 6 }, bg: 'bg_sea', pos: '50% 50%', size: '240%',
         say: 'Глава 2: жди в засаде и хватай рыбу длинной шеей!', facts: ['mouth', 'tail'] }),
+      CH(3, 'neck', 'Длинная шея', 2, { scene: 'neck', bg: 'bg_sea', pos: '50% 45%', size: '240%',
+        p: { need: 6, bg: 'bg_sea',
+          intro: ['Танистрофей подкрадывается к рыбам в мутной воде. Веди пальцем — голова потянется за ним. Шея почти не гнётся: она поворачивается у плеч. Не подплывай близко!',
+            'Веди пальцем — голова тянется к рыбе. Не подплывай близко!'],
+          win: 'Отличная охота! Большое тело пряталось в мутной воде, а к рыбе тянулась только маленькая голова.' },
+        say: 'Глава 3: подкрадись к рыбам длинной шеей!' }),
       FIN('bg_lagoon', '50% 60%')],
     final: { len: 'до 6 м', wt: 'шея 3 м', wtIcon: 'ruler', say: 'Ура! Твой танистрофей вырос — с шеей длиннее, чем у жирафа! Загляни в музей.' },
   });
@@ -432,8 +438,12 @@
       tail: { part: 'Повсюду', text: 'В некоторых слоях почти все кости — листрозавров: девять из десяти! Их нашли в Африке, Азии и Антарктиде.' },
     },
     chapters: [
-      CH(1, 'feed', 'Обед', 1, { scene: 'feed', p: { item: 'it_fern', low: true, need: 8, bg: 'bg_forest' }, bg: 'bg_burrows', pos: '60% 80%', size: '260%',
-        say: 'Глава 1: найди сочные папоротники!', facts: ['legs'] }),
+      CH(1, 'mow', 'Обед у земли', 1, { scene: 'mow', bg: 'bg_burrows', pos: '60% 80%', size: '260%',
+        p: { need: 14, bg: 'bg_valley', plantK: 1.45, dip: 8,
+          intro: ['Листрозавр срезает растения роговым клювом, как ножницами. Держи палец на экране — малыш пойдёт вперёд и будет щипать папоротники и хвощи.',
+            'Держи палец на экране — и щипли растения!'],
+          first: 'Хрум! Роговой клюв срезает сочные стебли.', win: 'Наелся! Роговой клюв срезал папоротники и хвощи у самой земли.' },
+        say: 'Глава 1: пощипли растения у самой земли!', facts: ['legs'] }),
       CH(2, 'mud', 'Через топь', 2, { scene: 'mud', p: {}, bg: 'bg_mud', pos: '50% 82%', size: '280%',
         say: 'Глава 2: перейди топкую равнину и не увязни!', facts: ['body', 'tail'] }),
       FIN('bg_forest', '30% 40%')],
@@ -579,6 +589,12 @@
   if (window.JURA) JURA.install({ D, S, add, CH, FIN, EGG });
   /* ---------------- the Cretaceous period (js/creta.js) */
   if (window.CRETA) CRETA.install({ D, S, add, CH, FIN, EGG });
+  /* ---------------- the Triassic of Africa and Madagascar (js/trias.js): more animals of the first period */
+  if (window.TRIAS) TRIAS.install({ D, S, add, CH, FIN, EGG });
+  /* ---------------- the Triassic of South America (js/trias_sam.js): Argentina and southern Brazil */
+  if (window.TRIAS_SAM) TRIAS_SAM.install({ D, S, add, CH, FIN, EGG });
+  if (window.JURA_SAM) JURA_SAM.install({ D, S, add, CH, FIN, EGG });
+  if (window.JURA_AUS) JURA_AUS.install({ D, S, add, CH, FIN, EGG });
 
   /* ---------------- more chapters: every animal gets 4–5 mini-games (the grown-up moment is a notice, not a chapter) */
   const NA_LAND = ['coelo', 'posto', 'placer', 'desma', 'icaro'], EU_NORIAN = ['plateo', 'liso', 'eudimo', 'petein', 'austria'], EU_SEA = ['placod', 'tany', 'notho', 'masto'];
@@ -687,8 +703,10 @@
       { id: 'feed2', scene: 'feed', name: 'Засуха', p: { item: 'it_shoots', low: true, need: 10, life: 6, bg: 'bg_forest' }, bg: 'bg_forest', pos: '30% 80%', size: '260%', say: 'засуха — растения быстро вянут, торопись!',
         note: 'Может быть, стадо лотозавров погибло в засуху: рядом с их костями учёные нашли трещины пересохшей земли.' },
       GUARD('bg_run', 'egg')],
-    shringa: [{ id: 'mud', scene: 'mud', name: 'Разлив реки', p: {}, bg: 'bg_mud', pos: '50% 82%', size: '280%', say: 'река разлилась — перейди по грязи и не увязни!',
-      note: 'Стадо шрингазавров, наверное, погибло во время наводнения: их кости нашли в речных наносах.' },
+    shringa: [{ id: 'duel', scene: 'duel', name: 'Поединок рогами', age: 2, bg: 'bg_run', pos: '50% 70%', size: '240%', say: 'померься силой с другим шрингазавром!',
+      p: { need: 3, bg: 'bg_run', contact: [1445, 30], gap: -8,
+        intro: ['Два молодых шрингазавра упёрлись рогами! Нажимай быстро-быстро — и толкай соперника назад!', 'Нажимай быстро-быстро — толкай соперника!'],
+        win: 'Победа! Учёные думают, что шрингазавры бодались рогами, как сейчас горные козлы.' } },
       { id: 'seek', scene: 'seek', name: 'Стадо', bg: 'bg_run', pos: '50% 70%', size: '240%', say: 'найди всех шрингазавров своего стада!',
         p: { bg: 'bg_run', intro: 'Шрингазавры жили стадом. Двигай картинку и найди всех!',
           who: [SHR('Это шрингазавр из твоего стада!', 260), SHR('Ещё один! В одном месте нашли семь-восемь шрингазавров.', 240),

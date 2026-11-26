@@ -83,7 +83,8 @@ UI.topRight = (opts) => {
 /* ---------------- narrator */
 /** the chapters, where the child plays as the animal: the narrator only speaks, no subtitle plate over the game */
 UI.QUIET = new Set(['ch1', 'ch2', 'ch3', 'ch4', 'hunt', 'feed', 'mud', 'flap', 'fishing', 'birth', 'swim', 'seek', 'escape', 'guard',
-  'chase', 'sneak', 'glide', 'ambush', 'defend', 'smell', 'duel', 'calls', 'thermal']);
+  'chase', 'sneak', 'glide', 'ambush', 'defend', 'smell', 'duel', 'calls', 'thermal', 'brood', 'neck', 'claws', 'storm', 'mow', 'tracks', 'termites', 'wade', 'night', 'dive',
+  'care', 'drink', 'tosea', 'lay', 'burrow', 'den', 'roots', 'stride', 'tide', 'leap', 'school']);
 UI.narr = (text, opts) => {
   if (UI.QUIET.has(G.sceneName)) {
     if (UI.narrEl) { UI.narrEl.remove(); UI.narrEl = null; }
@@ -372,7 +373,7 @@ const Test = (window.Test = {
     });
     const about = G.h('div', 'abs t-sub', b, { left: 32, top: 444, width: 796, fontSize: '13px', lineHeight: '1.45' });
     const app = window.DinoApp || null;
-    const say = (v) => { about.textContent = `${v ? 'Версия ' + v + '. ' : ''}Триасовый и юрский периоды, ${Object.keys(DATA.species).length} животных. ` +
+    const say = (v) => { about.textContent = `${v ? 'Версия ' + v + '. ' : ''}Триасовый, юрский и меловой периоды, ${Object.keys(DATA.species).length} животных. ` +
       (app ? 'Новые версии приходят сами, когда есть интернет; прогресс сохраняется.' : 'Прогресс хранится только в этом браузере.'); };
     say(app && app.version ? app.version() : '');
     if (!app) fetch('update.json').then((r) => r.json()).then((u) => say(u.version)).catch(() => {});

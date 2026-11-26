@@ -12,11 +12,11 @@ const Quiz = {
   pool: () => Quiz.PERS.filter((per) => window.QUIZ && QUIZ[per]).flatMap((per) => G.inPeriod(per)).filter((id) => Quiz.all() || G.spState(id).assembled),
   /** the questions of all periods together */
   bank() {
-    const B = { q: [], fly: [], glide: [], air: [], sea: [], water: [], plants: [], meat: [], where: {}, len: {} };
+    const B = { q: [], fly: [], glide: [], air: [], sea: [], water: [], plants: [], meat: [], alike: [], where: {}, len: {} };
     for (const per of Quiz.PERS) {
       const b = window.QUIZ && QUIZ[per];
       if (!b) continue;
-      for (const k of ['q', 'fly', 'glide', 'air', 'sea', 'water', 'plants', 'meat']) B[k] = B[k].concat(b[k] || []);
+      for (const k of ['q', 'fly', 'glide', 'air', 'sea', 'water', 'plants', 'meat', 'alike']) B[k] = B[k].concat(b[k] || []);
       Object.assign(B.where, b.where); Object.assign(B.len, b.len);
     }
     return B;
@@ -32,10 +32,13 @@ const Quiz = {
     for (const a of B.sea) add({ kind: 'sea', q: 'Кто из них жил в море?', a, wrong: not(B.sea, B.water) });
     for (const a of B.plants) add({ kind: 'plants', q: 'Кто из них ел растения?', a, wrong: B.meat.slice() });
     for (const a of B.meat) add({ kind: 'meat', q: 'Кто из них был хищником?', a, wrong: B.plants.slice() });
-    for (const [a, c] of Object.entries(B.where)) add({ kind: 'where', q: `Кого из них нашли в ${c}?`, a, wrong: Object.keys(B.where).filter((id) => B.where[id] !== c) });
+    // a place may come with its own preposition («на Мадагаскаре»), the others take «в»
+    for (const [a, c] of Object.entries(B.where)) add({ kind: 'where', q: `Кого из них нашли ${/^(в|во|на) /.test(c) ? c : 'в ' + c}?`, a, wrong: Object.keys(B.where).filter((id) => B.where[id] !== c) });
     // pictures instead of words: a shadow, a skeleton
-    for (const a of pool) add({ kind: 'shadow', pic: 'shadow', q: 'Чья это тень?', a, wrong: pool.slice() });
-    for (const a of pool) if (MAN.sk && MAN.sk[a]) add({ kind: 'skel', pic: 'skel', q: 'Чей это скелет?', a, wrong: pool.slice() });
+    // (animals that look alike — two small fish — are never offered together: B.alike)
+    const unlike = (a) => pool.filter((id) => !B.alike.some((g) => g.includes(a) && g.includes(id)));
+    for (const a of pool) add({ kind: 'shadow', pic: 'shadow', q: 'Чья это тень?', a, wrong: unlike(a) });
+    for (const a of pool) if (MAN.sk && MAN.sk[a]) add({ kind: 'skel', pic: 'skel', q: 'Чей это скелет?', a, wrong: unlike(a) });
     return out;
   },
   /** «who was the longest / the smallest»: four animals whose lengths differ clearly */

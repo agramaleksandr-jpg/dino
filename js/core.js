@@ -46,8 +46,40 @@ G.RBG = {
   asia: { bg_run: 'bg_asia_run', bg_forest: 'bg_asia_forest', bg_valley: 'bg_asia_valley', bg_mud: 'bg_asia_mud', bg_hide: 'bg_asia_forest', bg_sea: 'bg_tethys' },
 };
 G.regionOf = (sp) => { const q = sp || (G.state && G.SP()); const s = q && DATA.sites[q.site]; return s ? s.region : null; };
-G.rbg = (key, sp) => { const m = G.RBG[G.regionOf(sp)]; return (m && m[key]) || key; };
-G.bgImg = (key, parent, style) => { const im = G.h('img', 'bgimg', parent || G.scene$, style); im.src = G.src(G.rbg(key)); im.draggable = false; return im; };
+/** a dig site can have pictures of its own (G.RBGS[site]: the Nemegt valley, the lakes of Shandong), before those of its region */
+G.RBGS = {};
+G.rbg = (key, sp) => {
+  const q = sp || (G.state && G.SP()), s = q && G.RBGS[q.site];
+  if (s && s[key]) return s[key];
+  const m = G.RBG[G.regionOf(sp)]; return (m && m[key]) || key;
+};
+G.bgImg = (key, parent, style) => {
+  const k = G.rbg(key), a = G.ATLAS && G.ATLAS[k];
+  // a picture that shares its file with another one (js/atlas_pics.js): a box showing just its part
+  if (a) { const d = G.h('div', 'bgimg', parent || G.scene$, style); G.atlasBg(d, a); return d; }
+  const im = G.h('img', 'bgimg', parent || G.scene$, style); im.src = G.src(k); im.draggable = false; return im;
+};
+/** show the atlas piece a = [atlas, x, y, w, h, W, H] filling the element */
+G.atlasBg = (el, a) => {
+  const [ak, ax, ay, aw, ah, AW, AH] = a;
+  Object.assign(el.style, { backgroundImage: `url(${G.src(ak)})`, backgroundRepeat: 'no-repeat', backgroundSize: `${(AW / aw) * 100}% ${(AH / ah) * 100}%`,
+    backgroundPosition: `${AW > aw ? (ax / (AW - aw)) * 100 : 0}% ${AH > ah ? (ay / (AH - ah)) * 100 : 0}%` });
+  return el;
+};
+/** CSS for a picture as the background of a box of cw x ch px, sized like 'background-size: S%' (or 'cover') and placed like
+ *  'background-position: X% Y%' would place it — also when the picture is a piece of an atlas */
+G.picCss = (key, size, pos, cw, ch) => {
+  const a = G.ATLAS && G.ATLAS[key];
+  if (!a) return `background-image:url(${G.src(key)});background-size:${size};background-position:${pos}`;
+  const [ak, ax, ay, aw, ah, AW, AH] = a;
+  let pw, ph;
+  if (/%$/.test(size || '')) { pw = (cw * parseFloat(size)) / 100; ph = (pw * ah) / aw; }
+  else { const k0 = Math.max(cw / aw, ch / ah); pw = aw * k0; ph = ah * k0; }
+  const [px, py] = (pos || '50% 50%').split(/\s+/).map((v) => parseFloat(v) / 100);
+  const k = pw / aw, ox = (cw - pw) * px, oy = (ch - ph) * (isNaN(py) ? px : py);
+  return `background-image:url(${G.src(ak)});background-repeat:no-repeat;background-size:${(AW * k).toFixed(1)}px ${(AH * k).toFixed(1)}px;` +
+    `background-position:${(ox - ax * k).toFixed(1)}px ${(oy - ay * k).toFixed(1)}px`;
+};
 /** skeleton pieces sit in one picture per animal (js/atlas.js: key -> [atlas, x, y, w, h, W, H]) */
 G.ATLAS = window.ATLAS || {};
 G.imgKey = (key) => (G.ATLAS[key] ? G.ATLAS[key][0] : key);

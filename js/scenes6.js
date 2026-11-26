@@ -5,7 +5,7 @@
 /* ------------------------------------------------------------------ seek · pan a wide picture and find the neighbours */
 Scenes.seek = {
   enter(p) {
-    const SC = window.SEEKZ && SEEKZ.of[G.cur()];
+    const SC = window.SEEKZ && (p.sc || SEEKZ.of[G.cur()]);
     if (SC) return this.painted(p, SC);
     const sc = G.scene$, tok = G.token, sp = G.SP(), C = chOf(p, 3);
     const Z = 1.6, PW = 1280 * Z, PH = 720 * Z, base = p.bg || 'bg_forest', bgKey = G.rbg(base), sea = base === 'bg_sea';
@@ -19,7 +19,7 @@ Scenes.seek = {
     const items = (p.who || []).map((w, i) => {
       const o = typeof w === 'string' ? { id: w } : w;
       if (o.id.startsWith('nb_')) {
-        const nb = DATA.neighbours.concat(DATA.jnb || [], DATA.cnb || []).find((q) => 'nb_' + q.key === o.id), air = nb.place === 'air';
+        const nb = DATA.neighbours.concat(DATA.jnb || [], DATA.cnb || [], DATA.tnb || []).find((q) => 'nb_' + q.key === o.id), air = nb.place === 'air';
         return { i, key: o.id, name: nb.name, text: nb.text, place: sea ? 'water' : nb.place || 'ground', w: o.w || (air ? 190 : 230) };
       }
       const q = DATA.species[o.id], t = kindOf(q);
@@ -63,7 +63,7 @@ Scenes.seek = {
     });
     UI.narrBottom = 84;
     const hand = UI.hand(G.ui, G.W / 2, G.H / 2, 'swipe');
-    G.say(p.intro || 'Двигай картинку пальцем и найди всех соседей — кто ещё жил рядом!');
+    G.say(Array.isArray(p.intro) ? AU.alt(p.intro[0], p.intro[1]) : p.intro || 'Двигай картинку пальцем и найди всех соседей — кто ещё жил рядом!');
     const showFound = (it) => {
       it.got = true; S.found++;
       top.counter.set(`${S.found} / ${N}`);
@@ -133,11 +133,16 @@ Scenes.seek = {
     const marks = G.h('div', 'full', pan, { width: PW, height: PH, pointerEvents: 'none' });
     shades(sc, 0.5, 0);
     chHeader(C.n, C.name);
-    const zones = SEEKZ.z[scKey], herd = zones.every(([id]) => id === sp.id);
-    const herdTexts = herd ? (p.who || []).map((w) => (typeof w === 'string' ? '' : w.text || '')) : [];
-    const NB = DATA.neighbours.concat(DATA.jnb || [], DATA.cnb || []);
-    const items = zones.map(([id, cs], i) => {
-      const c = cs.map(([x, y, r]) => [x * k, y * k, r * k]), [x, y, r] = c[0];
+    // a zone id may carry a variant ('nb_dinodontosaurus#young', 'macro#2'): the same animal with its own line (DATA.zoneInfo)
+    const baseId = (id) => id.split('#')[0];
+    // p.find: the age-mates game — only the animals whose zone id matches are to be found (the same kind at the hero's age);
+    // the others (babies, grown-ups) tell who they are when tapped but do not count
+    const AGE = p.find ? new RegExp(p.find) : null;
+    const zones = SEEKZ.z[scKey], herd = !AGE && zones.every(([id]) => baseId(id) === sp.id);
+    const herdTexts = herd || AGE ? (p.who || []).map((w) => (typeof w === 'string' ? '' : w.text || '')) : [];
+    const NB = DATA.neighbours.concat(DATA.jnb || [], DATA.cnb || [], DATA.tnb || []);
+    const items = zones.map(([zid, cs], i) => {
+      const c = cs.map(([x, y, r]) => [x * k, y * k, r * k]), [x, y, r] = c[0], id = baseId(zid);
       let name, text, key;
       if (id.startsWith('it_')) {
         const q = (DATA.itemInfo || {})[id] || { name: '', text: '' };
@@ -145,15 +150,28 @@ Scenes.seek = {
       } else if (id.startsWith('nb_')) {
         const nb = NB.find((q) => 'nb_' + q.key === id), self = (DATA.nbSp || {})[id] === sp.id;
         name = nb.name; key = id;
-        text = self ? `${nb.name} — ${G.fm('такой же', 'такая же')}, как ты! ${sp.hero.size}.` : nb.text;
+        text = self ? nb.self || `${nb.name} — ${G.fm('такой же', 'такая же')}, как ты! ${sp.hero.size}.` : nb.text;
       } else {
         const q = DATA.species[id];
         name = q.name; key = q.img;
         text = id === sp.id ? `${q.name} — ${G.fm('такой же', 'такая же')}, как ты! ${q.hero.size}.` : `${q.name} — ${q.kind.toLowerCase()}. ${q.hero.size}.`;
       }
-      return { i, id, key, name, text, c, x, y, r, got: false };
+      const v = zid !== id && (DATA.zoneInfo || {})[zid];
+      if (v) { if (v.name) name = v.name; if (v.text) text = v.text; }
+      return { i, id, zid, key, name, text, c, x, y, r, got: false, num: zid === id ? 1 : +(zid.split('#')[1]) || 0 };
     });
-    const N = items.length;
+    const goal = AGE ? items.filter((it) => AGE.test(it.zid)) : items;
+    goal.forEach((it, j) => { it.slot = j; it.goal = true; });
+    // numbered copies of one animal ('macro', 'macro#2', 'macro#3') speak in the order they are found,
+    // so "one more!" never comes before the first one
+    for (const it of items) {
+      if (!it.num || it.grp) continue;
+      const same = items.filter((q) => q.num && q.id === it.id).sort((a, b) => a.num - b.num);
+      if (same.length < 2) continue;
+      const grp = { texts: same.map((q) => q.text), got: 0 };
+      for (const q of same) q.grp = grp;
+    }
+    const N = goal.length;
     const S = { px: 0, py: 0, vx: 0, vy: 0, drag: null, found: 0, hints: 0, done: false };
     const clamp = () => {
       S.px = G.clamp(S.px, G.vis.x1 - PW, G.vis.x0); S.py = G.clamp(S.py, G.vis.y1 - PH, G.vis.y0);
@@ -167,7 +185,7 @@ Scenes.seek = {
     // tray: the shadows of everyone to find
     const tw = 8 + N * 68;
     const tray = G.h('div', 'plate abs', G.ui, { left: Math.round(G.W / 2 - tw / 2), bottom: 12, width: tw, height: 60, '--c': '8px' });
-    const slots = items.map((it, i) => {
+    const slots = goal.map((it, i) => {
       const s = G.h('div', 'abs', tray, { left: 8 + i * 68, top: 8, width: 62, height: 44, borderRadius: '5px', background: 'rgba(255,255,255,.04)' });
       const m = MAN[it.key], kk = Math.min(54 / m.w, 34 / m.h);
       const im = G.spr(it.key, s, 31 - (m.w * kk) / 2, 22 - (m.h * kk) / 2, m.w * kk, m.h * kk);
@@ -177,7 +195,7 @@ Scenes.seek = {
     });
     UI.narrBottom = 84;
     const hand = UI.hand(G.ui, G.W / 2, G.H / 2, 'swipe');
-    G.say(p.intro || 'Двигай картинку пальцем и найди всех соседей — кто ещё жил рядом!');
+    G.say(Array.isArray(p.intro) ? AU.alt(p.intro[0], p.intro[1]) : p.intro || 'Двигай картинку пальцем и найди всех соседей — кто ещё жил рядом!');
     const card = (it, text) => {
       if (S.card) S.card.remove();
       // the card goes to the side away from the animal, so it never hides it
@@ -193,9 +211,9 @@ Scenes.seek = {
       AU.play('found'); if (!it.id.startsWith('it_')) AU.voiceOf(it.id, { at: 0.3, vol: 0.55 }); G.fx.sparkle(S.px + it.x, S.py + it.y, 18);
       G.h('div', 'abs', marks, { left: it.x - it.r * 1.05, top: it.y - it.r * 1.05, width: it.r * 2.1, height: it.r * 2.1, borderRadius: '50%', border: '4px solid #F2B640', boxShadow: '0 0 16px rgba(242,182,64,.7)' });
       G.h('div', 'abs', marks, { left: it.x + it.r * 0.62, top: it.y - it.r * 1.0, width: 40, height: 40, borderRadius: '50%', background: '#4CD26B', border: '3px solid #fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }, icon('check', ' style="width:22px;height:22px;color:#2A1E05"'));
-      const sl = slots[it.i]; sl.im.style.filter = 'drop-shadow(0 2px 3px rgba(0,0,0,.5))'; sl.q.remove(); sl.s.style.background = 'rgba(255,255,255,.1)';
+      const sl = slots[it.slot]; sl.im.style.filter = 'drop-shadow(0 2px 3px rgba(0,0,0,.5))'; sl.q.remove(); sl.s.style.background = 'rgba(255,255,255,.1)';
       // a herd: the lines go in the order the animals are found ("…and the last one!")
-      it.said = herd && herdTexts[S.found - 1] ? herdTexts[S.found - 1] : it.text;
+      it.said = (herd || AGE) && herdTexts[S.found - 1] ? herdTexts[S.found - 1] : it.grp ? it.grp.texts[it.grp.got++] : it.text;
       card(it, it.said);
       G.say(it.said);
       if (S.found >= N) finish();
@@ -203,7 +221,7 @@ Scenes.seek = {
     const finish = async () => {
       S.done = true;
       await G.wait(3.2); if (!G.alive(tok)) return;
-      G.say(herd ? 'Все нашлись!' : 'Все соседи найдены!');
+      G.say(AGE && p.done ? p.done : herd ? 'Все нашлись!' : 'Все соседи найдены!');
       chFinish(C.n, Math.max(1, 3 - S.hints), { stat: `Найдено ${N} из ${N} · подсказок: ${S.hints}` });
     };
     // which painted animal is under the finger (a little room around it for small fingers)
@@ -218,8 +236,8 @@ Scenes.seek = {
     const tapAt = (bp) => {
       const it = hitAt(bp.x - S.px, bp.y - S.py);
       if (!it) { AU.play('miss'); return; }
-      if (!it.got) { showFound(it); return; }
-      // found before: tell about it again
+      if (!it.got && it.goal) { showFound(it); return; }
+      // not one to find (another age): it says who it is; found before: it tells about itself again
       AU.play('pop'); card(it, it.said || it.text); G.say(it.said || it.text);
     };
     G.on(sc, 'pointerdown', (e) => { AU.unlock(); const q = G.bgPt(e); S.drag = { pid: e.pointerId, x: q.x, y: q.y, sx: q.x, sy: q.y, moved: 0 }; S.vx = S.vy = 0; hand.style.display = 'none'; });
@@ -236,7 +254,7 @@ Scenes.seek = {
     };
     G.on(window, 'pointerup', up); G.on(window, 'pointercancel', up);
     UI.tap(hb, () => {
-      const it = items.find((q) => !q.got); if (!it) return;
+      const it = goal.find((q) => !q.got); if (!it) return;
       S.hints++;
       const x0 = S.px, y0 = S.py, x1 = 640 - it.x, y1 = 330 - it.y;
       G.tween(0.7, (e) => { S.px = G.lerp(x0, x1, e); S.py = G.lerp(y0, y1, e); clamp(); }, G.ease.inOut).then(() => {
@@ -260,7 +278,10 @@ Scenes.seek = {
    Heavy animals do not jump (p.ram): thickets stand in the way, a tap lowers the head and the animal breaks through. */
 Scenes.escape = {
   enter(p) {
-    const sc = G.scene$, tok = G.token, sp = G.SP(), C = chOf(p, 3), GY = 612, X = 520, DIST = p.dist || 5600, hk = p.hunter || 'sp_posto';
+    // p.hr: the predator's length over the hero's. A much bigger hunter is drawn to scale, the hero runs further right
+    // so that the hunter's head and shoulders stay in view
+    const HR = p.hr || 0;
+    const sc = G.scene$, tok = G.token, sp = G.SP(), C = chOf(p, 3), GY = 612, X = HR > 2.5 ? 700 : 520, DIST = p.dist || 5600, hk = p.hunter || 'sp_posto';
     const who = p.hunterName || 'хищник', RAM = !!p.ram;
     G.h('div', 'full', sc, { background: '#c9a06a' });
     GL.attach(sc);
@@ -270,14 +291,14 @@ Scenes.escape = {
     UI.topRight();
     const track = uiTrack(sp.sil);
     const K = fitK(sp.id, sp.type === 'biped' ? 330 : 300, 170), dino = GL.makeAuto(sp.id, { x: X, y: GY, s: K, z: 3 });
-    const d = MAN.auto[sp.id], half = ((d.box[1] - d.box[0]) / 2) * K;
+    const d = MAN.auto[sp.id], half = ((d.box[1] - d.box[0]) / 2) * K, hwT = HR ? Math.min(1150, 2 * half * HR) : 0;
     const STRIDE = GL.autoStride(dino, 'run') * K, V = 330;
     // the predator behind: a jointed runner when its parts are loaded, otherwise a picture
     const hid = hk.replace(/^sp_/, ''), ha = MAN.auto && MAN.auto[hid];
     const live = !!(ha && ha.pairs && G.have('sp_' + hid + '_body') && ha.pairs.every((q) => G.have(q.key)));
     let hunter = null, HI = null, KH = 0, hwH = 400, HSTR = 1, hh = 0;
     if (live) {
-      KH = fitK(hid, 470, 210); hwH = (ha.box[1] - ha.box[0]) * KH;
+      KH = HR ? hwT / (ha.box[1] - ha.box[0]) : fitK(hid, 470, 210); hwH = (ha.box[1] - ha.box[0]) * KH;
       HI = GL.makeAuto(hid, { x: -600, y: GY, s: KH, z: 2 });
       HSTR = GL.autoStride(HI, 'run') * KH;
     }
@@ -285,7 +306,8 @@ Scenes.escape = {
     const legAt = HI ? ha.pairs.map((q) => (ha.box[1] - q.joints[4][0]) / (ha.box[1] - ha.box[0])) : [];
     if (!HI) {
       const hm = MAN[hk];
-      if (RAM) hwH = Math.min(hwH, (1.5 * (d.box[3] - d.box[2]) * K * hm.w) / hm.h);   // not a giant beside a small animal
+      if (HR) hwH = hwT;
+      else if (RAM) hwH = Math.min(hwH, (1.5 * (d.box[3] - d.box[2]) * K * hm.w) / hm.h);   // not a giant beside a small animal
       hh = (hwH * hm.h) / hm.w;
       hunter = G.spr(hk, sc, 0, 0, hwH, hh);
       hunter.style.filter = 'drop-shadow(0 6px 6px rgba(0,0,0,.4))';
@@ -648,7 +670,15 @@ Scenes.guard = {
     G.dbg = { S, it, mode };
     // ---- the thieves
     const FOE = { it_cyno: ['зверёк', 140], it_lizard: ['ящерица', 150], it_fish: ['хищная рыба', 210], sp_coelo: ['целофизис', 220], sp_notho: ['нотозавр', 300], nb_eoraptor: ['эораптор', 200],
-      nb_compsognathus: ['компсогнат', 190], nb_amphitherium: ['зверёк', 140], it_mammal: ['зверёк', 140], nb_bernissartia: ['крокодильчик', 210] };
+      nb_compsognathus: ['компсогнат', 190], nb_amphitherium: ['зверёк', 140], it_mammal: ['зверёк', 140], nb_bernissartia: ['крокодильчик', 210],
+      nb_squalicorax: ['акула', 280], nb_repenomamus: ['зверь', 190], nb_beelzebufo: ['лягушка', 190],
+      nb_vincelestes: ['зверёк', 160], nb_noasaurus: ['ноазавр', 220],
+      nb_goniopholis: ['крокодил', 230], nb_spinolestes: ['зверёк', 150], nb_meyasaurus: ['ящерица', 150], nb_kogaionon: ['зверёк', 150],
+      nb_isisfordia: ['крокодил', 200], nb_confractosuchus: ['крокодил', 240],
+      nb_bambiraptor: ['бамбираптор', 200], nb_gobiconodon: ['зверь', 170], nb_paluxysuchus: ['крокодил', 230],
+      nb_sanajeh: ['змея', 250], nb_deccanolestes: ['зверёк', 130], sp_eupark: ['эупаркерия', 230] };
+    // a snake glides along the ground, it does not hop
+    const SLIDE = new Set(['nb_sanajeh', 'nb_najash']);
     const kinds = p.foes || (sea ? ['it_fish'] : mode === 'tree' ? ['it_lizard'] : ['it_cyno', 'it_lizard']);
     const hand = UI.hand(G.ui, G.W / 2, G.H / 2, 'tap'); hand.style.display = 'none';
     const reachR = sea ? 95 : 70 + (mode === 'tree' ? 0 : 50);
@@ -730,7 +760,7 @@ Scenes.guard = {
           f.x += f.side * f.v * 2.6 * dt; f.op = Math.max(0, f.op - dt * 0.8); f.c.el.style.opacity = f.op;
           if (f.x < -260 || f.x > 1540 || f.op <= 0) { drop(f); continue; }
         }
-        const face = f.state === 'flee' ? f.side : -f.side, bob = sea ? 0 : -Math.abs(Math.sin(f.ph)) * 4;
+        const face = f.state === 'flee' ? f.side : -f.side, bob = sea || SLIDE.has(f.key) ? 0 : -Math.abs(Math.sin(f.ph)) * 4;
         const yb = sea ? f.y + f.c.h / 2 + Math.sin(f.ph) * 4 : f.y;
         f.c.place(f.x, yb, face, bob);
         f.hit.style.display = f.state === 'come' ? '' : 'none';

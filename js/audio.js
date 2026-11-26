@@ -69,6 +69,9 @@ const SFX = {
   ok: () => { AU.tone(660, 0.1, { type: 'triangle', vol: 0.13 }); AU.tone(990, 0.17, { type: 'triangle', vol: 0.13, at: 0.08 }); },
   miss: () => AU.tone(300, 0.2, { type: 'triangle', vol: 0.11, to: 190 }),
   step: () => AU.noise(0.07, { f: 260, vol: 0.16 }),
+  // water: a beak or a snout going into the water; a swallow
+  splash: () => { AU.noise(0.34, { ft: 'bandpass', f: 1400, fto: 320, q: 0.7, vol: 0.3 }); AU.noise(0.12, { ft: 'highpass', f: 3200, vol: 0.1, at: 0.04 }); },
+  gulp: () => { AU.tone(210, 0.12, { vol: 0.16, to: 120 }); AU.tone(150, 0.1, { vol: 0.1, to: 90, at: 0.11 }); },
   pop: () => AU.tone(520, 0.09, { vol: 0.14, to: 950 }),
   roar: () => {
     const c = AU.ctx, t = c.currentTime;
